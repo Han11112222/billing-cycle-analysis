@@ -60,7 +60,7 @@ def load_and_process_data():
 df_master = load_and_process_data()
 
 if df_master is not None:
-    # 1. 시트별 기초 집계 (사용량 합계 및 업체수 고유값 카운트 추가)
+    # 1. 시트별 기초 집계
     summary = df_master.groupby('부문').agg(
         부문별_판매량=('사용량', 'sum'),
         업체수=('고객명', 'nunique')
@@ -100,8 +100,6 @@ if df_master is not None:
         })
         
         display_df = pd.concat([summary, total_row], ignore_index=True)
-        
-        # 컬럼 순서 재배치
         display_df = display_df[['부문', '업체수(개소)', '부문별 판매량(m3)', '전체대비 비율(%)']]
         
         formatted_df = display_df.copy()
@@ -156,21 +154,17 @@ if df_master is not None:
         if len(sector_df) == 0:
             st.info(f"💡 '{selected_sector}' 부문의 고객 내역이 없습니다.")
         else:
-            # 부문별 전체 요약 지표 산출
             total_sector_vol = sector_df['사용량'].sum()
             total_sector_cnt = sector_df['고객명'].nunique()
             
-            # 상단 요약 텍스트 배치
             st.markdown(f"**📌 [{selected_sector}] 전체 업체 수:** {total_sector_cnt:,} 개소 &nbsp;&nbsp;|&nbsp;&nbsp; **전체 사용량 총합:** {total_sector_vol:,.0f} m³")
             
-            # 업체별 사용량 집계 및 정렬
             grouped = sector_df.groupby('고객명')['사용량'].sum().reset_index().sort_values(by='사용량', ascending=False)
             top_10_chart = grouped.head(10).copy()
             
             col_bar, col_list = st.columns([6, 4])
             
             with col_bar:
-                # 차트는 가독성을 위해 상위 10개만 유지
                 fig_bar = px.bar(
                     top_10_chart,
                     x='사용량',
@@ -188,38 +182,37 @@ if df_master is not None:
             with col_list:
                 st.markdown(f"##### 🏆 [{selected_sector}] 판매량 고객 표")
                 
-                # 표 데이터 구성: Top 10 + 기타 + 총계
                 display_list = grouped.head(10).copy()
                 
-                # 11위 이하 데이터가 존재할 경우 '기타' 물량으로 병합
                 if len(grouped) > 10:
                     others_vol = grouped.iloc[10:]['사용량'].sum()
                     display_list.loc[len(display_list)] = ['📁 기타', others_vol]
                 
-                # 맨 하단 총계 행 추가
                 display_list.loc[len(display_list)] = ['🟦 총계', total_sector_vol]
                 
-                # 순위 인덱스 번호 깔끔하게 정리
-                indices = []
-                rank = 1
+                # 🛑 [에러 해결 부분] 중복 인덱스 오류를 방지하기 위해 '순위' 컬럼을 새로 추가
+                ranks = []
+                rank_num = 1
                 for name in display_list['고객명']:
-                    if name in ['📁 기타', '🟦 총계']:
-                        indices.append('-')
+                    if '기타' in str(name) or '총계' in str(name):
+                        ranks.append('-')
                     else:
-                        indices.append(rank)
-                        rank += 1
-                display_list.index = indices
+                        ranks.append(str(rank_num))
+                        rank_num += 1
+                        
+                display_list.insert(0, '순위', ranks) # 데이터프레임 맨 앞에 삽입
                 
                 display_list['사용량'] = display_list['사용량'].map('{:,.0f} m³'.format)
                 
-                # 총계 행 파란색 하이라이트 스타일
                 def highlight_bottom_total(row):
                     if '총계' in str(row['고객명']):
+                        # 컬럼 개수만큼 스타일 리스트 반환 (순위, 고객명, 사용량 -> 3개)
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
                 styled_list = display_list.style.apply(highlight_bottom_total, axis=1)
-                st.dataframe(styled_list, use_container_width=True)
+                # 인덱스를 숨겨서(hide_index=True) '순위' 컬럼만 예쁘게 보이도록 설정
+                st.dataframe(styled_list, use_container_width=True, hide_index=True)
 
     st.divider()
 
