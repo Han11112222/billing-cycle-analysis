@@ -115,7 +115,10 @@ if df_master is not None:
             {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px')]}
         ]
         
-        styled_table = formatted_df.style.apply(style_table, axis=1).set_table_styles(header_styles)
+        styled_table = formatted_df.style.apply(style_table, axis=1)\
+                                     .set_table_styles(header_styles)\
+                                     .set_properties(subset=['업체수(개소)', '부문별 판매량(m3)', '전체대비 비율(%)'], **{'text-align': 'right'})
+                                     
         st.dataframe(styled_table, use_container_width=True, hide_index=True)
 
     with col_chart:
@@ -200,15 +203,29 @@ if df_master is not None:
                         rank_num += 1
                         
                 display_list.insert(0, '순위', ranks)
+                
+                # ✅ [추가] 부문 내 비율 계산
+                display_list['비율(%)'] = (display_list['사용량'] / total_sector_vol) * 100
+                
                 display_list['사용량'] = display_list['사용량'].map('{:,.0f} m³'.format)
+                display_list['비율(%)'] = display_list['비율(%)'].map('{:.2f}%'.format)
                 
                 def highlight_bottom_total(row):
                     if '총계' in str(row['고객명']):
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
-                styled_list = display_list.style.apply(highlight_bottom_total, axis=1)
-                st.dataframe(styled_list, use_container_width=True, hide_index=True)
+                # ✅ [수정] 사용량, 비율 우측 정렬
+                styled_list = display_list.style.apply(highlight_bottom_total, axis=1)\
+                                                .set_properties(subset=['사용량', '비율(%)'], **{'text-align': 'right'})
+                
+                # ✅ [수정] 순위 컬럼 너비 1/3(small) 사이즈로 축소
+                st.dataframe(
+                    styled_list, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={"순위": st.column_config.Column(width="small")}
+                )
 
     st.divider()
 
@@ -234,21 +251,27 @@ if df_master is not None:
     # ----------------------------------------------------
     st.markdown("### 🏆 4. 전체 산업용 고객 판매량 Top 30")
     
-    # 고객명과 부문을 기준으로 전체 사용량 합산 후 상위 30개사 추출
     top30_df = df_master.groupby(['고객명', '부문'], as_index=False)['사용량'].sum()
     top30_df = top30_df.sort_values(by='사용량', ascending=False).head(30).reset_index(drop=True)
     
-    # 순위 컬럼 동적 추가 (데이터 길이에 맞춰 1번부터 부여)
     top30_df.insert(0, '순위', range(1, len(top30_df) + 1))
-    
-    # 요청하신 컬럼명으로 변경
     top30_df.rename(columns={'부문': '납기구분', '사용량': '사용'}, inplace=True)
     
-    # 숫자 포맷팅 (콤마 및 m³ 단위)
+    # ✅ [추가] 전체 대비 비율 계산 (전체 5대 부문 총합 기준)
+    top30_df['전체대비 비율(%)'] = (top30_df['사용'] / visible_total) * 100
+    
     top30_df['사용'] = top30_df['사용'].map('{:,.0f} m³'.format)
+    top30_df['전체대비 비율(%)'] = top30_df['전체대비 비율(%)'].map('{:.2f}%'.format)
     
-    # 출력할 컬럼 순서 지정
-    display_top30 = top30_df[['순위', '고객명', '사용', '납기구분']]
+    display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
     
-    # 깔끔하게 인덱스를 숨기고 화면 너비에 맞게 출력
-    st.dataframe(display_top30, use_container_width=True, hide_index=True)
+    # ✅ [수정] 사용량, 비율 우측 정렬
+    styled_top30 = display_top30.style.set_properties(subset=['사용', '전체대비 비율(%)'], **{'text-align': 'right'})
+    
+    # ✅ [수정] 순위 컬럼 너비 1/3(small) 사이즈로 축소
+    st.dataframe(
+        styled_top30, 
+        use_container_width=True, 
+        hide_index=True,
+        column_config={"순위": st.column_config.Column(width="small")}
+    )
