@@ -22,7 +22,6 @@ def load_and_process_data():
 
     all_data_list = []
     
-    # 시트명 키워드 매칭 (기타/일반납기 제외, 순수 5대 부문만 추출)
     for raw_sheet_name, df_sheet in excel_sheets.items():
         sheet_name = str(raw_sheet_name).strip()
         category_name = None
@@ -61,21 +60,26 @@ def load_and_process_data():
 df_master = load_and_process_data()
 
 if df_master is not None:
-    # 1. 시트별 기초 집계 (보이는 5대 부문만)
-    summary = df_master.groupby('부문')['사용량'].sum().reset_index()
-    summary.columns = ['부문', '부문별 판매량(m3)']
+    # 1. 시트별 기초 집계 (사용량 합계 및 업체수 고유값 카운트 추가)
+    summary = df_master.groupby('부문').agg(
+        부문별_판매량=('사용량', 'sum'),
+        업체수=('고객명', 'nunique')
+    ).reset_index()
+    
+    summary.rename(columns={'부문별_판매량': '부문별 판매량(m3)', '업체수': '업체수(개소)'}, inplace=True)
     
     ordered_categories = ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기']
     
     for cat in ordered_categories:
         if cat not in summary['부문'].values:
-            summary = pd.concat([summary, pd.DataFrame({'부문': [cat], '부문별 판매량(m3)': [0.0]})], ignore_index=True)
+            empty_row = pd.DataFrame({'부문': [cat], '부문별 판매량(m3)': [0.0], '업체수(개소)': [0]})
+            summary = pd.concat([summary, empty_row], ignore_index=True)
             
     summary['부문'] = pd.Categorical(summary['부문'], categories=ordered_categories, ordered=True)
     summary = summary.sort_values('부문').reset_index(drop=True)
     
-    # 화면에 보이는 부문들의 순수 총합 계산
     visible_total = summary['부문별 판매량(m3)'].sum()
+    total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
     # ----------------------------------------------------
@@ -91,10 +95,14 @@ if df_master is not None:
         total_row = pd.DataFrame({
             '부문': ['📊 총합계 (Grand Total)'],
             '부문별 판매량(m3)': [visible_total],
+            '업체수(개소)': [total_companies],
             '전체대비 비율(%)': [100.0]
         })
         
         display_df = pd.concat([summary, total_row], ignore_index=True)
+        
+        # 컬럼 순서 재배치
+        display_df = display_df[['부문', '업체수(개소)', '부문별 판매량(m3)', '전체대비 비율(%)']]
         
         formatted_df = display_df.copy()
         formatted_df['부문별 판매량(m3)'] = formatted_df['부문별 판매량(m3)'].map('{:,.0f} m³'.format)
@@ -148,56 +156,78 @@ if df_master is not None:
         if len(sector_df) == 0:
             st.info(f"💡 '{selected_sector}' 부문의 고객 내역이 없습니다.")
         else:
-            # 상위 10개 추출
-            top_10 = sector_df.groupby('고객명')['사용량'].sum().reset_index()
-            top_10 = top_10.sort_values(by='사용량', ascending=False).head(10).reset_index(drop=True)
+            # 부문별 전체 요약 지표 산출
+            total_sector_vol = sector_df['사용량'].sum()
+            total_sector_cnt = sector_df['고객명'].nunique()
+            
+            # 상단 요약 텍스트 배치
+            st.markdown(f"**📌 [{selected_sector}] 전체 업체 수:** {total_sector_cnt:,} 개소 &nbsp;&nbsp;|&nbsp;&nbsp; **전체 사용량 총합:** {total_sector_vol:,.0f} m³")
+            
+            # 업체별 사용량 집계 및 정렬
+            grouped = sector_df.groupby('고객명')['사용량'].sum().reset_index().sort_values(by='사용량', ascending=False)
+            top_10_chart = grouped.head(10).copy()
             
             col_bar, col_list = st.columns([6, 4])
             
             with col_bar:
-                # "상위 10개사" 문구 삭제, 요청하신 문구로 대체
+                # 차트는 가독성을 위해 상위 10개만 유지
                 fig_bar = px.bar(
-                    top_10,
+                    top_10_chart,
                     x='사용량',
                     y='고객명',
                     orientation='h',
                     text='사용량',
                     color='사용량',
                     color_continuous_scale=px.colors.sequential.Teal,
-                    title=f"[{selected_sector}] 판매량 고객"
+                    title=f"[{selected_sector}] 판매량 상위 고객"
                 )
                 fig_bar.update_traces(texttemplate='<b>%{text:,.0f} m³</b>', textposition='outside', textfont_size=12)
                 fig_bar.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False, margin=dict(r=120))
                 st.plotly_chart(fig_bar, use_container_width=True)
                 
             with col_list:
-                st.markdown(f"##### 🏆 [{selected_sector}] 판매량 고객")
+                st.markdown(f"##### 🏆 [{selected_sector}] 판매량 고객 표")
                 
-                # 표 최하단 합계 행 추가 로직
-                total_usage = top_10['사용량'].sum()
-                top_10.loc[len(top_10)] = ['🟦 합계', total_usage]
+                # 표 데이터 구성: Top 10 + 기타 + 총계
+                display_list = grouped.head(10).copy()
                 
-                # 순위 인덱스 (마지막 합계는 '-' 표기)
-                top_10.index = list(range(1, len(top_10))) + ['-']
+                # 11위 이하 데이터가 존재할 경우 '기타' 물량으로 병합
+                if len(grouped) > 10:
+                    others_vol = grouped.iloc[10:]['사용량'].sum()
+                    display_list.loc[len(display_list)] = ['📁 기타', others_vol]
                 
-                top_10['사용량'] = top_10['사용량'].map('{:,.0f} m³'.format)
+                # 맨 하단 총계 행 추가
+                display_list.loc[len(display_list)] = ['🟦 총계', total_sector_vol]
                 
+                # 순위 인덱스 번호 깔끔하게 정리
+                indices = []
+                rank = 1
+                for name in display_list['고객명']:
+                    if name in ['📁 기타', '🟦 총계']:
+                        indices.append('-')
+                    else:
+                        indices.append(rank)
+                        rank += 1
+                display_list.index = indices
+                
+                display_list['사용량'] = display_list['사용량'].map('{:,.0f} m³'.format)
+                
+                # 총계 행 파란색 하이라이트 스타일
                 def highlight_bottom_total(row):
-                    if '합계' in str(row['고객명']):
+                    if '총계' in str(row['고객명']):
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
-                styled_top10 = top_10.style.apply(highlight_bottom_total, axis=1)
-                st.dataframe(styled_top10, use_container_width=True)
+                styled_list = display_list.style.apply(highlight_bottom_total, axis=1)
+                st.dataframe(styled_list, use_container_width=True)
 
     st.divider()
 
     # ----------------------------------------------------
-    # 3️⃣ 최하단 레이아웃: 부문별 사용일 기준표 (가로형)
+    # 3️⃣ 최하단 레이아웃: 부문별 사용일 기준표
     # ----------------------------------------------------
     st.markdown("### 📅 3. 부문별 사용일 기준 (관리납기)")
     
-    # 사진을 기반으로 재구성한 데이터 (텍스트는 업무 상황에 맞게 수정 가능)
     schedule_data = {
         '청구유형(부문)': ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기'],
         '1회차 (사용기간)': ['전월 1일 ~ 전월 말일', '전월 1일 ~ 전월 15일', '전월 16일 ~ 당월 15일', '전월 1일 ~ 전월 10일', '전월 16일 ~ 당월 15일'],
@@ -206,6 +236,4 @@ if df_master is not None:
     }
     
     df_schedule = pd.DataFrame(schedule_data)
-    
-    # 깔끔한 테이블 렌더링
     st.table(df_schedule)
