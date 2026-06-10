@@ -82,6 +82,12 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
+    # 📌 전역으로 사용할 테이블 헤더 중앙 정렬 스타일
+    center_header_styles = [
+        {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
+        {'selector': 'td', 'props': [('text-align', 'center')]}
+    ]
+
     # ----------------------------------------------------
     # 1️⃣ 상단 레이아웃: 요약 표 & 도넛 차트
     # ----------------------------------------------------
@@ -111,13 +117,10 @@ if df_master is not None:
                 return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
             return [''] * len(row)
             
-        header_styles = [
-            {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px')]}
-        ]
-        
+        # ✅ 모든 셀 중앙 정렬 적용
         styled_table = formatted_df.style.apply(style_table, axis=1)\
-                                     .set_table_styles(header_styles)\
-                                     .set_properties(subset=['업체수(개소)', '부문별 판매량(m3)', '전체대비 비율(%)'], **{'text-align': 'right'})
+                                         .set_table_styles(center_header_styles)\
+                                         .set_properties(**{'text-align': 'center'})
                                      
         st.dataframe(styled_table, use_container_width=True, hide_index=True)
 
@@ -129,11 +132,12 @@ if df_master is not None:
             hole=0.4,
             color_discrete_sequence=px.colors.sequential.Teal_r
         )
+        # ✅ 텍스트를 도형 안으로(inside), 양(m3) 제거 후 비율만 직관적으로 표기
         fig.update_traces(
-            textposition='outside',
-            textinfo='label+value+percent',
-            texttemplate='<b>%{label}</b><br>%{value:,.0f} m³<br>(%{percent})',
-            textfont_size=13
+            textposition='inside',
+            textinfo='label+percent',
+            texttemplate='<b>%{label}</b><br>%{percent}',
+            textfont_size=14
         )
         fig.update_layout(showlegend=False, margin=dict(t=40, b=40, l=40, r=40))
         st.plotly_chart(fig, use_container_width=True)
@@ -203,8 +207,6 @@ if df_master is not None:
                         rank_num += 1
                         
                 display_list.insert(0, '순위', ranks)
-                
-                # ✅ [추가] 부문 내 비율 계산
                 display_list['비율(%)'] = (display_list['사용량'] / total_sector_vol) * 100
                 
                 display_list['사용량'] = display_list['사용량'].map('{:,.0f} m³'.format)
@@ -215,16 +217,17 @@ if df_master is not None:
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
-                # ✅ [수정] 사용량, 비율 우측 정렬
+                # ✅ 모든 셀 중앙 정렬
                 styled_list = display_list.style.apply(highlight_bottom_total, axis=1)\
-                                                .set_properties(subset=['사용량', '비율(%)'], **{'text-align': 'right'})
+                                                .set_table_styles(center_header_styles)\
+                                                .set_properties(**{'text-align': 'center'})
                 
-                # ✅ [수정] 순위 컬럼 너비 1/3(small) 사이즈로 축소
+                # ✅ 순위 컬럼 너비를 픽셀 단위(width=30)로 대폭 축소 (1/3 크기 구현)
                 st.dataframe(
                     styled_list, 
                     use_container_width=True, 
                     hide_index=True,
-                    column_config={"순위": st.column_config.Column(width="small")}
+                    column_config={"순위": st.column_config.Column(width=30)}
                 )
 
     st.divider()
@@ -242,7 +245,11 @@ if df_master is not None:
     }
     
     df_schedule = pd.DataFrame(schedule_data)
-    st.table(df_schedule)
+    
+    # ✅ 사용일 기준표도 판다스 DataFrame 변환 후 Styler로 중앙 정렬 적용
+    styled_schedule = df_schedule.style.set_table_styles(center_header_styles)\
+                                       .set_properties(**{'text-align': 'center'})
+    st.dataframe(styled_schedule, use_container_width=True, hide_index=True)
 
     st.divider()
 
@@ -257,21 +264,20 @@ if df_master is not None:
     top30_df.insert(0, '순위', range(1, len(top30_df) + 1))
     top30_df.rename(columns={'부문': '납기구분', '사용량': '사용'}, inplace=True)
     
-    # ✅ [추가] 전체 대비 비율 계산 (전체 5대 부문 총합 기준)
     top30_df['전체대비 비율(%)'] = (top30_df['사용'] / visible_total) * 100
-    
     top30_df['사용'] = top30_df['사용'].map('{:,.0f} m³'.format)
     top30_df['전체대비 비율(%)'] = top30_df['전체대비 비율(%)'].map('{:.2f}%'.format)
     
     display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
     
-    # ✅ [수정] 사용량, 비율 우측 정렬
-    styled_top30 = display_top30.style.set_properties(subset=['사용', '전체대비 비율(%)'], **{'text-align': 'right'})
+    # ✅ 모든 셀 중앙 정렬
+    styled_top30 = display_top30.style.set_table_styles(center_header_styles)\
+                                      .set_properties(**{'text-align': 'center'})
     
-    # ✅ [수정] 순위 컬럼 너비 1/3(small) 사이즈로 축소
+    # ✅ 순위 컬럼 너비를 픽셀 단위(width=30)로 대폭 축소
     st.dataframe(
         styled_top30, 
         use_container_width=True, 
         hide_index=True,
-        column_config={"순위": st.column_config.Column(width="small")}
+        column_config={"순위": st.column_config.Column(width=30)}
     )
