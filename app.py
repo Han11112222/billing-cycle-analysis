@@ -190,7 +190,6 @@ if df_master is not None:
                 
                 display_list.loc[len(display_list)] = ['🟦 총계', total_sector_vol]
                 
-                # 🛑 [에러 해결 부분] 중복 인덱스 오류를 방지하기 위해 '순위' 컬럼을 새로 추가
                 ranks = []
                 rank_num = 1
                 for name in display_list['고객명']:
@@ -200,24 +199,21 @@ if df_master is not None:
                         ranks.append(str(rank_num))
                         rank_num += 1
                         
-                display_list.insert(0, '순위', ranks) # 데이터프레임 맨 앞에 삽입
-                
+                display_list.insert(0, '순위', ranks)
                 display_list['사용량'] = display_list['사용량'].map('{:,.0f} m³'.format)
                 
                 def highlight_bottom_total(row):
                     if '총계' in str(row['고객명']):
-                        # 컬럼 개수만큼 스타일 리스트 반환 (순위, 고객명, 사용량 -> 3개)
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
                 styled_list = display_list.style.apply(highlight_bottom_total, axis=1)
-                # 인덱스를 숨겨서(hide_index=True) '순위' 컬럼만 예쁘게 보이도록 설정
                 st.dataframe(styled_list, use_container_width=True, hide_index=True)
 
     st.divider()
 
     # ----------------------------------------------------
-    # 3️⃣ 최하단 레이아웃: 부문별 사용일 기준표
+    # 3️⃣ 하단 레이아웃: 부문별 사용일 기준표
     # ----------------------------------------------------
     st.markdown("### 📅 3. 부문별 사용일 기준 (관리납기)")
     
@@ -230,3 +226,29 @@ if df_master is not None:
     
     df_schedule = pd.DataFrame(schedule_data)
     st.table(df_schedule)
+
+    st.divider()
+
+    # ----------------------------------------------------
+    # 4️⃣ 최하단 레이아웃: 전체 산업용 Top 30 기업 표
+    # ----------------------------------------------------
+    st.markdown("### 🏆 4. 전체 산업용 고객 판매량 Top 30")
+    
+    # 고객명과 부문을 기준으로 전체 사용량 합산 후 상위 30개사 추출
+    top30_df = df_master.groupby(['고객명', '부문'], as_index=False)['사용량'].sum()
+    top30_df = top30_df.sort_values(by='사용량', ascending=False).head(30).reset_index(drop=True)
+    
+    # 순위 컬럼 동적 추가 (데이터 길이에 맞춰 1번부터 부여)
+    top30_df.insert(0, '순위', range(1, len(top30_df) + 1))
+    
+    # 요청하신 컬럼명으로 변경
+    top30_df.rename(columns={'부문': '납기구분', '사용량': '사용'}, inplace=True)
+    
+    # 숫자 포맷팅 (콤마 및 m³ 단위)
+    top30_df['사용'] = top30_df['사용'].map('{:,.0f} m³'.format)
+    
+    # 출력할 컬럼 순서 지정
+    display_top30 = top30_df[['순위', '고객명', '사용', '납기구분']]
+    
+    # 깔끔하게 인덱스를 숨기고 화면 너비에 맞게 출력
+    st.dataframe(display_top30, use_container_width=True, hide_index=True)
