@@ -94,7 +94,6 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
-    # 📌 전역을 완벽한 중간 정렬(Center)로 세팅
     center_header_styles = [
         {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
         {'selector': 'td', 'props': [('text-align', 'center')]}
@@ -211,7 +210,6 @@ if df_master is not None:
             with col_list:
                 st.markdown(f"##### 🏆 [{selected_sector}] 판매량 고객 표")
                 
-                # ✅ [버그 수정] index를 완전히 리셋해야 loc[len(display_list)] 할 때 엉뚱한 위치를 덮어쓰지 않습니다.
                 display_list = grouped.head(10).copy().reset_index(drop=True)
                 
                 if len(grouped) > 10:
@@ -264,16 +262,31 @@ if df_master is not None:
     top30_df = df_master.groupby(['고객명', '부문'], as_index=False)['사용량'].sum()
     top30_df = top30_df.sort_values(by='사용량', ascending=False).head(30).reset_index(drop=True)
     
+    # ✅ [수정 파트] Top 30 소계 및 비율 계산 추가
+    top30_total_vol = top30_df['사용량'].sum()
+    top30_total_ratio = (top30_total_vol / visible_total) * 100
+    
     top30_df.insert(0, '순위', range(1, len(top30_df) + 1))
     top30_df.rename(columns={'부문': '납기구분', '사용량': '사용'}, inplace=True)
     
     top30_df['전체대비 비율(%)'] = (top30_df['사용'] / visible_total) * 100
-    top30_df['사용'] = top30_df['사용'].map('{:,.0f} m³'.format)
-    top30_df['전체대비 비율(%)'] = top30_df['전체대비 비율(%)'].map('{:.1f}%'.format)
     
-    display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
+    display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']].copy()
     
-    styled_top30 = display_top30.style.set_table_styles(center_header_styles)\
+    # ✅ [수정 파트] 소계 행 추가
+    display_top30.loc[len(display_top30)] = ['-', '🟦 Top 30 소계', top30_total_vol, '-', top30_total_ratio]
+    
+    display_top30['사용'] = display_top30['사용'].map('{:,.0f} m³'.format)
+    display_top30['전체대비 비율(%)'] = display_top30['전체대비 비율(%)'].map('{:.1f}%'.format)
+    
+    # ✅ [수정 파트] 소계 행 하이라이트 함수
+    def highlight_top30_total(row):
+        if '소계' in str(row['고객명']):
+            return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
+        return [''] * len(row)
+        
+    styled_top30 = display_top30.style.apply(highlight_top30_total, axis=1)\
+                                      .set_table_styles(center_header_styles)\
                                       .set_properties(**{'text-align': 'center'})
     
     st.dataframe(
