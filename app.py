@@ -6,7 +6,7 @@ import base64
 
 st.set_page_config(page_title="빌링 납기별 분석", layout="wide")
 
-# ✅ 로고 이미지 로드 (안전장치 강화)
+# ✅ 1. 좌측 탭 임시 텍스트 삭제 (이미지가 있으면 띄우고, 없으면 비워둠)
 logo_jpg = "logo.jpg"
 logo_png = "logo.png"
 
@@ -14,9 +14,6 @@ if os.path.exists(logo_jpg):
     st.sidebar.image(logo_jpg, use_container_width=True)
 elif os.path.exists(logo_png):
     st.sidebar.image(logo_png, use_container_width=True)
-else:
-    # 이미지가 없거나 이름이 다를 경우 에러를 내지 않고 텍스트로 렌더링
-    st.sidebar.markdown("<h2 style='text-align: center; color: #1B4F72;'>🏢 대성에너지</h2>", unsafe_allow_html=True)
 
 st.title("📊 산업용 빌링 납기 부문별 종합 분석 대시보드")
 
@@ -283,17 +280,23 @@ if df_master is not None:
     st.divider()
 
     # ----------------------------------------------------
-    # 4️⃣ 최하단 레이아웃: 청구 사이클 비교 PDF 뷰어
+    # 4️⃣ 최하단 레이아웃: 청구 사이클 이미지(또는 PDF) 뷰어
     # ----------------------------------------------------
     st.markdown("### 📅 4. 부문별 청구 사이클 비교 (사용일 기준)")
     
+    # ✅ 2. JPG, PNG를 우선적으로 찾고 없으면 PDF를 로드하는 유연한 구조
+    img_jpg = "청구사이클비교.jpg"
+    img_png = "청구사이클비교.png"
     pdf_file = "청구사이클비교.pdf"
     
-    if os.path.exists(pdf_file):
+    if os.path.exists(img_jpg):
+        st.image(img_jpg, use_container_width=True)
+    elif os.path.exists(img_png):
+        st.image(img_png, use_container_width=True)
+    elif os.path.exists(pdf_file):
         with open(pdf_file, "rb") as f:
             base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-        
         pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
         st.markdown(pdf_display, unsafe_allow_html=True)
     else:
-        st.warning(f"⚠️ '{pdf_file}' 파일이 레포지토리에 없습니다. 깃허브에 파일이 정상적으로 업로드되었는지 확인해주세요.")
+        st.info("💡 '청구사이클비교' 이미지(.jpg, .png) 또는 PDF 파일을 레포지토리에 올려주세요.")
