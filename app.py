@@ -6,7 +6,6 @@ import base64
 
 st.set_page_config(page_title="빌링 납기별 분석", layout="wide")
 
-# ✅ 1. 좌측 탭 임시 텍스트 삭제 (이미지가 있으면 띄우고, 없으면 비워둠)
 logo_jpg = "logo.jpg"
 logo_png = "logo.png"
 
@@ -95,9 +94,10 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
-    center_header_styles = [
-        {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
-        {'selector': 'td', 'props': [('text-align', 'center')]}
+    # 📌 전역 우측 정렬 스타일 지정 (헤더 및 데이터)
+    right_header_styles = [
+        {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'right')]},
+        {'selector': 'td', 'props': [('text-align', 'right')]}
     ]
 
     # ----------------------------------------------------
@@ -130,8 +130,8 @@ if df_master is not None:
             return [''] * len(row)
             
         styled_table = formatted_df.style.apply(style_table, axis=1)\
-                                         .set_table_styles(center_header_styles)\
-                                         .set_properties(**{'text-align': 'center'})
+                                         .set_table_styles(right_header_styles)\
+                                         .set_properties(**{'text-align': 'right'})
                                      
         st.dataframe(styled_table, use_container_width=True, hide_index=True)
 
@@ -238,14 +238,14 @@ if df_master is not None:
                     return [''] * len(row)
                     
                 styled_list = display_list.style.apply(highlight_bottom_total, axis=1)\
-                                                .set_table_styles(center_header_styles)\
-                                                .set_properties(**{'text-align': 'center'})
+                                                .set_table_styles(right_header_styles)\
+                                                .set_properties(**{'text-align': 'right'})
                 
                 st.dataframe(
                     styled_list, 
                     use_container_width=True, 
                     hide_index=True,
-                    column_config={"순위": st.column_config.Column(width=30)}
+                    column_config={"순위": st.column_config.Column(width=10)}
                 )
 
     st.divider()
@@ -267,24 +267,23 @@ if df_master is not None:
     
     display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
     
-    styled_top30 = display_top30.style.set_table_styles(center_header_styles)\
-                                      .set_properties(**{'text-align': 'center'})
+    styled_top30 = display_top30.style.set_table_styles(right_header_styles)\
+                                      .set_properties(**{'text-align': 'right'})
     
     st.dataframe(
         styled_top30, 
         use_container_width=True, 
         hide_index=True,
-        column_config={"순위": st.column_config.Column(width=30)}
+        column_config={"순위": st.column_config.Column(width=10)}
     )
 
     st.divider()
 
     # ----------------------------------------------------
-    # 4️⃣ 최하단 레이아웃: 청구 사이클 이미지(또는 PDF) 뷰어
+    # 4️⃣ 최하단 레이아웃: 청구 사이클 비교 뷰어
     # ----------------------------------------------------
     st.markdown("### 📅 4. 부문별 청구 사이클 비교 (사용일 기준)")
     
-    # ✅ 2. JPG, PNG를 우선적으로 찾고 없으면 PDF를 로드하는 유연한 구조
     img_jpg = "청구사이클비교.jpg"
     img_png = "청구사이클비교.png"
     pdf_file = "청구사이클비교.pdf"
