@@ -94,10 +94,10 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
-    # 📌 전역 우측 정렬 스타일 지정 (헤더 및 데이터)
-    right_header_styles = [
-        {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'right')]},
-        {'selector': 'td', 'props': [('text-align', 'right')]}
+    # 📌 [수정] 전역을 완벽한 중간 정렬(Center)로 세팅
+    center_header_styles = [
+        {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
+        {'selector': 'td', 'props': [('text-align', 'center')]}
     ]
 
     # ----------------------------------------------------
@@ -127,11 +127,15 @@ if df_master is not None:
         def style_table(row):
             if '총합계' in str(row['부문']):
                 return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
+            # ✅ [수정] 산업용기타(2회) 연한 회색 하이라이트 적용
+            elif '산업용기타(2회)' in str(row['부문']):
+                return ['background-color: #F2F3F4;'] * len(row)
             return [''] * len(row)
             
+        # ✅ [수정] 중앙 정렬 반영
         styled_table = formatted_df.style.apply(style_table, axis=1)\
-                                         .set_table_styles(right_header_styles)\
-                                         .set_properties(**{'text-align': 'right'})
+                                         .set_table_styles(center_header_styles)\
+                                         .set_properties(**{'text-align': 'center'})
                                      
         st.dataframe(styled_table, use_container_width=True, hide_index=True)
 
@@ -237,15 +241,20 @@ if df_master is not None:
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
+                # ✅ [수정] 중앙 정렬 반영
                 styled_list = display_list.style.apply(highlight_bottom_total, axis=1)\
-                                                .set_table_styles(right_header_styles)\
-                                                .set_properties(**{'text-align': 'right'})
+                                                .set_table_styles(center_header_styles)\
+                                                .set_properties(**{'text-align': 'center'})
                 
+                # ✅ [수정] 고객명을 'large'로 둬서 순위의 'small' 너비가 확실히 작동하게 끔 유도
                 st.dataframe(
                     styled_list, 
                     use_container_width=True, 
                     hide_index=True,
-                    column_config={"순위": st.column_config.Column(width=10)}
+                    column_config={
+                        "순위": st.column_config.Column(width="small"),
+                        "고객명": st.column_config.Column(width="large")
+                    }
                 )
 
     st.divider()
@@ -267,14 +276,19 @@ if df_master is not None:
     
     display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
     
-    styled_top30 = display_top30.style.set_table_styles(right_header_styles)\
-                                      .set_properties(**{'text-align': 'right'})
+    # ✅ [수정] 중앙 정렬 반영
+    styled_top30 = display_top30.style.set_table_styles(center_header_styles)\
+                                      .set_properties(**{'text-align': 'center'})
     
+    # ✅ [수정] 고객명을 'large'로 둬서 순위의 'small' 너비가 확실히 작동하게 끔 유도
     st.dataframe(
         styled_top30, 
         use_container_width=True, 
         hide_index=True,
-        column_config={"순위": st.column_config.Column(width=10)}
+        column_config={
+            "순위": st.column_config.Column(width="small"),
+            "고객명": st.column_config.Column(width="large")
+        }
     )
 
     st.divider()
