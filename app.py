@@ -94,7 +94,7 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
-    # 📌 [수정] 전역을 완벽한 중간 정렬(Center)로 세팅
+    # 📌 전역을 완벽한 중간 정렬(Center)로 세팅
     center_header_styles = [
         {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
         {'selector': 'td', 'props': [('text-align', 'center')]}
@@ -127,12 +127,10 @@ if df_master is not None:
         def style_table(row):
             if '총합계' in str(row['부문']):
                 return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
-            # ✅ [수정] 산업용기타(2회) 연한 회색 하이라이트 적용
             elif '산업용기타(2회)' in str(row['부문']):
                 return ['background-color: #F2F3F4;'] * len(row)
             return [''] * len(row)
             
-        # ✅ [수정] 중앙 정렬 반영
         styled_table = formatted_df.style.apply(style_table, axis=1)\
                                          .set_table_styles(center_header_styles)\
                                          .set_properties(**{'text-align': 'center'})
@@ -213,7 +211,8 @@ if df_master is not None:
             with col_list:
                 st.markdown(f"##### 🏆 [{selected_sector}] 판매량 고객 표")
                 
-                display_list = grouped.head(10).copy()
+                # ✅ [버그 수정] index를 완전히 리셋해야 loc[len(display_list)] 할 때 엉뚱한 위치를 덮어쓰지 않습니다.
+                display_list = grouped.head(10).copy().reset_index(drop=True)
                 
                 if len(grouped) > 10:
                     others_vol = grouped.iloc[10:]['사용량'].sum()
@@ -241,12 +240,10 @@ if df_master is not None:
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
-                # ✅ [수정] 중앙 정렬 반영
                 styled_list = display_list.style.apply(highlight_bottom_total, axis=1)\
                                                 .set_table_styles(center_header_styles)\
                                                 .set_properties(**{'text-align': 'center'})
                 
-                # ✅ [수정] 고객명을 'large'로 둬서 순위의 'small' 너비가 확실히 작동하게 끔 유도
                 st.dataframe(
                     styled_list, 
                     use_container_width=True, 
@@ -276,11 +273,9 @@ if df_master is not None:
     
     display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
     
-    # ✅ [수정] 중앙 정렬 반영
     styled_top30 = display_top30.style.set_table_styles(center_header_styles)\
                                       .set_properties(**{'text-align': 'center'})
     
-    # ✅ [수정] 고객명을 'large'로 둬서 순위의 'small' 너비가 확실히 작동하게 끔 유도
     st.dataframe(
         styled_top30, 
         use_container_width=True, 
