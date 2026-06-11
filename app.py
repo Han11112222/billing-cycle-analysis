@@ -4,6 +4,15 @@ import plotly.express as px
 import os
 
 st.set_page_config(page_title="빌링 납기별 분석", layout="wide")
+
+# ✅ 사이드바에 로고 이미지 추가 (깃허브에 logo.jpg 파일이 있어야 합니다)
+if os.path.exists("logo.jpg"):
+    st.sidebar.image("logo.jpg", use_container_width=True)
+elif os.path.exists("logo.png"):
+    st.sidebar.image("logo.png", use_container_width=True)
+else:
+    st.sidebar.warning("⚠️ 로고 이미지(logo.jpg)를 찾을 수 없습니다.")
+
 st.title("📊 산업용 빌링 납기 부문별 종합 분석 대시보드")
 
 @st.cache_data
@@ -84,7 +93,6 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
-    # 📌 전역 중앙 정렬 스타일
     center_header_styles = [
         {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
         {'selector': 'td', 'props': [('text-align', 'center')]}
@@ -112,8 +120,6 @@ if df_master is not None:
         
         formatted_df = display_df.copy()
         formatted_df['부문별 판매량(m3)'] = formatted_df['부문별 판매량(m3)'].map('{:,.0f} m³'.format)
-        
-        # ✅ 비율 소수점 1자리로 통일
         formatted_df['전체대비 비율(%)'] = formatted_df['전체대비 비율(%)'].map('{:.1f}%'.format)
         
         def style_table(row):
@@ -140,7 +146,6 @@ if df_master is not None:
         
         text_positions = ['outside' if cat in ['산업용3회', '업무용 납기', '일반납기'] else 'inside' for cat in summary['부문']]
         
-        # ✅ 차트 내부 비율도 소수점 1자리 표시되도록 %{percent:.1%} 설정
         fig.update_traces(
             textposition=text_positions,
             textinfo='label+percent',
@@ -158,7 +163,7 @@ if df_master is not None:
     st.divider()
 
     # ----------------------------------------------------
-    # 2️⃣ 하단 레이아웃: 활성화 버튼 기반 부문별 업체 조회
+    # 2️⃣ 중앙 레이아웃: 활성화 버튼 기반 부문별 업체 조회
     # ----------------------------------------------------
     st.markdown("### 🏢 2. 부문별 판매량 고객 현황")
     
@@ -223,8 +228,6 @@ if df_master is not None:
                 display_list['비율(%)'] = (display_list['사용량'] / total_sector_vol) * 100
                 
                 display_list['사용량'] = display_list['사용량'].map('{:,.0f} m³'.format)
-                
-                # ✅ 비율 소수점 1자리로 통일
                 display_list['비율(%)'] = display_list['비율(%)'].map('{:.1f}%'.format)
                 
                 def highlight_bottom_total(row):
@@ -246,29 +249,9 @@ if df_master is not None:
     st.divider()
 
     # ----------------------------------------------------
-    # 3️⃣ 하단 레이아웃: 부문별 사용일 기준표
+    # 3️⃣ 하단 레이아웃: 전체 산업용 Top 30 기업 표 (순서 변경됨)
     # ----------------------------------------------------
-    st.markdown("### 📅 3. 부문별 사용일 기준 (관리납기)")
-    
-    schedule_data = {
-        '청구유형(부문)': ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기', '일반납기'],
-        '1회차 (사용기간)': ['전월 1일 ~ 전월 말일', '전월 1일 ~ 전월 15일', '전월 16일 ~ 당월 15일', '전월 1일 ~ 전월 10일', '전월 16일 ~ 당월 15일', '-'],
-        '2회차 (사용기간)': ['-', '전월 16일 ~ 전월 말일', '당월 1일 ~ 당월 15일', '전월 11일 ~ 전월 20일', '-', '-'],
-        '3회차 (사용기간)': ['-', '-', '-', '전월 21일 ~ 전월 말일', '-', '-']
-    }
-    
-    df_schedule = pd.DataFrame(schedule_data)
-    
-    styled_schedule = df_schedule.style.set_table_styles(center_header_styles)\
-                                       .set_properties(**{'text-align': 'center'})
-    st.dataframe(styled_schedule, use_container_width=True, hide_index=True)
-
-    st.divider()
-
-    # ----------------------------------------------------
-    # 4️⃣ 최하단 레이아웃: 전체 산업용 Top 30 기업 표
-    # ----------------------------------------------------
-    st.markdown("### 🏆 4. 전체 산업용 고객 판매량 Top 30")
+    st.markdown("### 🏆 3. 전체 산업용 고객 판매량 Top 30")
     
     top30_df = df_master.groupby(['고객명', '부문'], as_index=False)['사용량'].sum()
     top30_df = top30_df.sort_values(by='사용량', ascending=False).head(30).reset_index(drop=True)
@@ -278,8 +261,6 @@ if df_master is not None:
     
     top30_df['전체대비 비율(%)'] = (top30_df['사용'] / visible_total) * 100
     top30_df['사용'] = top30_df['사용'].map('{:,.0f} m³'.format)
-    
-    # ✅ 비율 소수점 1자리로 통일
     top30_df['전체대비 비율(%)'] = top30_df['전체대비 비율(%)'].map('{:.1f}%'.format)
     
     display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
@@ -293,3 +274,23 @@ if df_master is not None:
         hide_index=True,
         column_config={"순위": st.column_config.Column(width=30)}
     )
+
+    st.divider()
+
+    # ----------------------------------------------------
+    # 4️⃣ 최하단 레이아웃: 부문별 사용일 기준표 (순서 변경됨)
+    # ----------------------------------------------------
+    st.markdown("### 📅 4. 부문별 사용일 기준 (관리납기)")
+    
+    schedule_data = {
+        '청구유형(부문)': ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기', '일반납기'],
+        '1회차 (사용기간)': ['전월 1일 ~ 전월 말일', '전월 1일 ~ 전월 15일', '전월 16일 ~ 당월 15일', '전월 1일 ~ 전월 10일', '전월 16일 ~ 당월 15일', '-'],
+        '2회차 (사용기간)': ['-', '전월 16일 ~ 전월 말일', '당월 1일 ~ 당월 15일', '전월 11일 ~ 전월 20일', '-', '-'],
+        '3회차 (사용기간)': ['-', '-', '-', '전월 21일 ~ 전월 말일', '-', '-']
+    }
+    
+    df_schedule = pd.DataFrame(schedule_data)
+    
+    styled_schedule = df_schedule.style.set_table_styles(center_header_styles)\
+                                       .set_properties(**{'text-align': 'center'})
+    st.dataframe(styled_schedule, use_container_width=True, hide_index=True)
