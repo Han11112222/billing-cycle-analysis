@@ -2,17 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+import base64
 
 st.set_page_config(page_title="빌링 납기별 분석", layout="wide")
-
-# ✅ 사이드바에 로고 이미지 추가 (깃허브에 logo.jpg 파일이 있어야 합니다)
-if os.path.exists("logo.jpg"):
-    st.sidebar.image("logo.jpg", use_container_width=True)
-elif os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", use_container_width=True)
-else:
-    st.sidebar.warning("⚠️ 로고 이미지(logo.jpg)를 찾을 수 없습니다.")
-
 st.title("📊 산업용 빌링 납기 부문별 종합 분석 대시보드")
 
 @st.cache_data
@@ -249,7 +241,7 @@ if df_master is not None:
     st.divider()
 
     # ----------------------------------------------------
-    # 3️⃣ 하단 레이아웃: 전체 산업용 Top 30 기업 표 (순서 변경됨)
+    # 3️⃣ 하단 레이아웃: 전체 산업용 Top 30 기업 표
     # ----------------------------------------------------
     st.markdown("### 🏆 3. 전체 산업용 고객 판매량 Top 30")
     
@@ -278,19 +270,18 @@ if df_master is not None:
     st.divider()
 
     # ----------------------------------------------------
-    # 4️⃣ 최하단 레이아웃: 부문별 사용일 기준표 (순서 변경됨)
+    # 4️⃣ 최하단 레이아웃: 청구 사이클 비교 PDF 뷰어
     # ----------------------------------------------------
-    st.markdown("### 📅 4. 부문별 사용일 기준 (관리납기)")
+    st.markdown("### 📅 4. 부문별 청구 사이클 비교 (사용일 기준)")
     
-    schedule_data = {
-        '청구유형(부문)': ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기', '일반납기'],
-        '1회차 (사용기간)': ['전월 1일 ~ 전월 말일', '전월 1일 ~ 전월 15일', '전월 16일 ~ 당월 15일', '전월 1일 ~ 전월 10일', '전월 16일 ~ 당월 15일', '-'],
-        '2회차 (사용기간)': ['-', '전월 16일 ~ 전월 말일', '당월 1일 ~ 당월 15일', '전월 11일 ~ 전월 20일', '-', '-'],
-        '3회차 (사용기간)': ['-', '-', '-', '전월 21일 ~ 전월 말일', '-', '-']
-    }
+    pdf_file = "청구사이클비교.pdf"
     
-    df_schedule = pd.DataFrame(schedule_data)
-    
-    styled_schedule = df_schedule.style.set_table_styles(center_header_styles)\
-                                       .set_properties(**{'text-align': 'center'})
-    st.dataframe(styled_schedule, use_container_width=True, hide_index=True)
+    if os.path.exists(pdf_file):
+        # PDF 파일을 Base64로 인코딩하여 화면에 직접 렌더링
+        with open(pdf_file, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ '{pdf_file}' 파일이 레포지토리에 없습니다. 깃허브에 파일이 정상적으로 업로드되었는지 확인해주세요.")
