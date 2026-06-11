@@ -5,6 +5,19 @@ import os
 import base64
 
 st.set_page_config(page_title="빌링 납기별 분석", layout="wide")
+
+# ✅ 로고 이미지 로드 (안전장치 강화)
+logo_jpg = "logo.jpg"
+logo_png = "logo.png"
+
+if os.path.exists(logo_jpg):
+    st.sidebar.image(logo_jpg, use_container_width=True)
+elif os.path.exists(logo_png):
+    st.sidebar.image(logo_png, use_container_width=True)
+else:
+    # 이미지가 없거나 이름이 다를 경우 에러를 내지 않고 텍스트로 렌더링
+    st.sidebar.markdown("<h2 style='text-align: center; color: #1B4F72;'>🏢 대성에너지</h2>", unsafe_allow_html=True)
+
 st.title("📊 산업용 빌링 납기 부문별 종합 분석 대시보드")
 
 @st.cache_data
@@ -277,7 +290,6 @@ if df_master is not None:
     pdf_file = "청구사이클비교.pdf"
     
     if os.path.exists(pdf_file):
-        # PDF 파일을 Base64로 인코딩하여 화면에 직접 렌더링
         with open(pdf_file, "rb") as f:
             base64_pdf = base64.b64encode(f.read()).decode('utf-8')
         
