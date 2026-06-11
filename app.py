@@ -36,7 +36,7 @@ def load_and_process_data():
             category_name = '산업용3회'
         elif '업무용' in sheet_name:
             category_name = '업무용 납기'
-        elif '일반납기' in sheet_name: # ✅ 일반납기 시트 추가
+        elif '일반납기' in sheet_name:
             category_name = '일반납기'
             
         if category_name:
@@ -70,7 +70,6 @@ if df_master is not None:
     
     summary.rename(columns={'부문별_판매량': '부문별 판매량(m3)', '업체수': '업체수(개소)'}, inplace=True)
     
-    # ✅ 일반납기 포함 6개 카테고리 구성
     ordered_categories = ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기', '일반납기']
     
     for cat in ordered_categories:
@@ -85,7 +84,7 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
-    # 📌 전역으로 사용할 테이블 헤더 & 셀 중앙 정렬 스타일
+    # 📌 전역 중앙 정렬 스타일
     center_header_styles = [
         {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
         {'selector': 'td', 'props': [('text-align', 'center')]}
@@ -127,30 +126,30 @@ if df_master is not None:
         st.dataframe(styled_table, use_container_width=True, hide_index=True)
 
     with col_chart:
-        # ✅ 도넛 차트 생성 및 제목 추가
+        # ✅ 좌측 표와 동일한 소제목 포맷 적용
+        st.markdown("##### 📊 부문별 판매량 비율")
+        
         fig = px.pie(
             summary,
             names='부문',
             values='부문별 판매량(m3)',
             hole=0.4,
-            color_discrete_sequence=px.colors.sequential.Teal_r,
-            title="🎯 부문별 판매량 점유율"
+            color_discrete_sequence=px.colors.sequential.Teal_r
         )
         
-        # ✅ 파이가 작은 부문은 텍스트를 바깥으로, 나머지는 안으로 동적 설정
         text_positions = ['outside' if cat in ['산업용3회', '업무용 납기', '일반납기'] else 'inside' for cat in summary['부문']]
         
         fig.update_traces(
             textposition=text_positions,
-            textinfo='label+percent', # 사용량(value) 제거, 부문명과 비율만 표기
+            textinfo='label+percent',
             texttemplate='<b>%{label}</b><br>%{percent}',
-            textfont_size=14
+            textfont_size=14,
+            insidetextorientation='horizontal'  # ✅ 도넛 내부 텍스트 180도(수평) 고정
         )
         
         fig.update_layout(
-            title_x=0.5, # 제목을 차트 중앙으로 정렬
             showlegend=False, 
-            margin=dict(t=60, b=40, l=40, r=40)
+            margin=dict(t=10, b=10, l=120, r=40)  # ✅ 좌측 여백(l)을 120으로 대폭 늘려 외부 텍스트 공간 확보
         )
         st.plotly_chart(fig, use_container_width=True)
 
