@@ -112,7 +112,9 @@ if df_master is not None:
         
         formatted_df = display_df.copy()
         formatted_df['부문별 판매량(m3)'] = formatted_df['부문별 판매량(m3)'].map('{:,.0f} m³'.format)
-        formatted_df['전체대비 비율(%)'] = formatted_df['전체대비 비율(%)'].map('{:.2f}%'.format)
+        
+        # ✅ 비율 소수점 1자리로 통일
+        formatted_df['전체대비 비율(%)'] = formatted_df['전체대비 비율(%)'].map('{:.1f}%'.format)
         
         def style_table(row):
             if '총합계' in str(row['부문']):
@@ -126,7 +128,6 @@ if df_master is not None:
         st.dataframe(styled_table, use_container_width=True, hide_index=True)
 
     with col_chart:
-        # ✅ 좌측 표와 동일한 소제목 포맷 적용
         st.markdown("##### 📊 부문별 판매량 비율")
         
         fig = px.pie(
@@ -139,17 +140,18 @@ if df_master is not None:
         
         text_positions = ['outside' if cat in ['산업용3회', '업무용 납기', '일반납기'] else 'inside' for cat in summary['부문']]
         
+        # ✅ 차트 내부 비율도 소수점 1자리 표시되도록 %{percent:.1%} 설정
         fig.update_traces(
             textposition=text_positions,
             textinfo='label+percent',
-            texttemplate='<b>%{label}</b><br>%{percent}',
+            texttemplate='<b>%{label}</b><br>%{percent:.1%}',
             textfont_size=14,
-            insidetextorientation='horizontal'  # ✅ 도넛 내부 텍스트 180도(수평) 고정
+            insidetextorientation='horizontal'
         )
         
         fig.update_layout(
             showlegend=False, 
-            margin=dict(t=10, b=10, l=120, r=40)  # ✅ 좌측 여백(l)을 120으로 대폭 늘려 외부 텍스트 공간 확보
+            margin=dict(t=10, b=10, l=120, r=40)
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -221,7 +223,9 @@ if df_master is not None:
                 display_list['비율(%)'] = (display_list['사용량'] / total_sector_vol) * 100
                 
                 display_list['사용량'] = display_list['사용량'].map('{:,.0f} m³'.format)
-                display_list['비율(%)'] = display_list['비율(%)'].map('{:.2f}%'.format)
+                
+                # ✅ 비율 소수점 1자리로 통일
+                display_list['비율(%)'] = display_list['비율(%)'].map('{:.1f}%'.format)
                 
                 def highlight_bottom_total(row):
                     if '총계' in str(row['고객명']):
@@ -274,7 +278,9 @@ if df_master is not None:
     
     top30_df['전체대비 비율(%)'] = (top30_df['사용'] / visible_total) * 100
     top30_df['사용'] = top30_df['사용'].map('{:,.0f} m³'.format)
-    top30_df['전체대비 비율(%)'] = top30_df['전체대비 비율(%)'].map('{:.2f}%'.format)
+    
+    # ✅ 비율 소수점 1자리로 통일
+    top30_df['전체대비 비율(%)'] = top30_df['전체대비 비율(%)'].map('{:.1f}%'.format)
     
     display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
     
