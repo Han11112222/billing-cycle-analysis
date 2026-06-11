@@ -36,6 +36,8 @@ def load_and_process_data():
             category_name = '산업용3회'
         elif '업무용' in sheet_name:
             category_name = '업무용 납기'
+        elif '일반납기' in sheet_name: # ✅ 일반납기 시트 추가
+            category_name = '일반납기'
             
         if category_name:
             df_sheet.columns = df_sheet.columns.str.strip()
@@ -68,7 +70,8 @@ if df_master is not None:
     
     summary.rename(columns={'부문별_판매량': '부문별 판매량(m3)', '업체수': '업체수(개소)'}, inplace=True)
     
-    ordered_categories = ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기']
+    # ✅ 일반납기 포함 6개 카테고리 구성
+    ordered_categories = ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기', '일반납기']
     
     for cat in ordered_categories:
         if cat not in summary['부문'].values:
@@ -82,7 +85,7 @@ if df_master is not None:
     total_companies = summary['업체수(개소)'].sum()
     summary['전체대비 비율(%)'] = (summary['부문별 판매량(m3)'] / visible_total) * 100
 
-    # 📌 전역으로 사용할 테이블 헤더 중앙 정렬 스타일
+    # 📌 전역으로 사용할 테이블 헤더 & 셀 중앙 정렬 스타일
     center_header_styles = [
         {'selector': 'th', 'props': [('background-color', '#1B4F72'), ('color', 'white'), ('font-weight', 'bold'), ('font-size', '14px'), ('text-align', 'center')]},
         {'selector': 'td', 'props': [('text-align', 'center')]}
@@ -117,7 +120,6 @@ if df_master is not None:
                 return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
             return [''] * len(row)
             
-        # ✅ 모든 셀 중앙 정렬 적용
         styled_table = formatted_df.style.apply(style_table, axis=1)\
                                          .set_table_styles(center_header_styles)\
                                          .set_properties(**{'text-align': 'center'})
@@ -125,21 +127,31 @@ if df_master is not None:
         st.dataframe(styled_table, use_container_width=True, hide_index=True)
 
     with col_chart:
+        # ✅ 도넛 차트 생성 및 제목 추가
         fig = px.pie(
             summary,
             names='부문',
             values='부문별 판매량(m3)',
             hole=0.4,
-            color_discrete_sequence=px.colors.sequential.Teal_r
+            color_discrete_sequence=px.colors.sequential.Teal_r,
+            title="🎯 부문별 판매량 점유율"
         )
-        # ✅ 텍스트를 도형 안으로(inside), 양(m3) 제거 후 비율만 직관적으로 표기
+        
+        # ✅ 파이가 작은 부문은 텍스트를 바깥으로, 나머지는 안으로 동적 설정
+        text_positions = ['outside' if cat in ['산업용3회', '업무용 납기', '일반납기'] else 'inside' for cat in summary['부문']]
+        
         fig.update_traces(
-            textposition='inside',
-            textinfo='label+percent',
+            textposition=text_positions,
+            textinfo='label+percent', # 사용량(value) 제거, 부문명과 비율만 표기
             texttemplate='<b>%{label}</b><br>%{percent}',
             textfont_size=14
         )
-        fig.update_layout(showlegend=False, margin=dict(t=40, b=40, l=40, r=40))
+        
+        fig.update_layout(
+            title_x=0.5, # 제목을 차트 중앙으로 정렬
+            showlegend=False, 
+            margin=dict(t=60, b=40, l=40, r=40)
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
@@ -217,12 +229,10 @@ if df_master is not None:
                         return ['background-color: #D6EAF8; font-weight: bold; color: #1B4F72;'] * len(row)
                     return [''] * len(row)
                     
-                # ✅ 모든 셀 중앙 정렬
                 styled_list = display_list.style.apply(highlight_bottom_total, axis=1)\
                                                 .set_table_styles(center_header_styles)\
                                                 .set_properties(**{'text-align': 'center'})
                 
-                # ✅ 순위 컬럼 너비를 픽셀 단위(width=30)로 대폭 축소 (1/3 크기 구현)
                 st.dataframe(
                     styled_list, 
                     use_container_width=True, 
@@ -238,15 +248,14 @@ if df_master is not None:
     st.markdown("### 📅 3. 부문별 사용일 기준 (관리납기)")
     
     schedule_data = {
-        '청구유형(부문)': ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기'],
-        '1회차 (사용기간)': ['전월 1일 ~ 전월 말일', '전월 1일 ~ 전월 15일', '전월 16일 ~ 당월 15일', '전월 1일 ~ 전월 10일', '전월 16일 ~ 당월 15일'],
-        '2회차 (사용기간)': ['-', '전월 16일 ~ 전월 말일', '당월 1일 ~ 당월 15일', '전월 11일 ~ 전월 20일', '-'],
-        '3회차 (사용기간)': ['-', '-', '-', '전월 21일 ~ 전월 말일', '-']
+        '청구유형(부문)': ['산업용 1회', '산업용월말(2회)', '산업용기타(2회)', '산업용3회', '업무용 납기', '일반납기'],
+        '1회차 (사용기간)': ['전월 1일 ~ 전월 말일', '전월 1일 ~ 전월 15일', '전월 16일 ~ 당월 15일', '전월 1일 ~ 전월 10일', '전월 16일 ~ 당월 15일', '-'],
+        '2회차 (사용기간)': ['-', '전월 16일 ~ 전월 말일', '당월 1일 ~ 당월 15일', '전월 11일 ~ 전월 20일', '-', '-'],
+        '3회차 (사용기간)': ['-', '-', '-', '전월 21일 ~ 전월 말일', '-', '-']
     }
     
     df_schedule = pd.DataFrame(schedule_data)
     
-    # ✅ 사용일 기준표도 판다스 DataFrame 변환 후 Styler로 중앙 정렬 적용
     styled_schedule = df_schedule.style.set_table_styles(center_header_styles)\
                                        .set_properties(**{'text-align': 'center'})
     st.dataframe(styled_schedule, use_container_width=True, hide_index=True)
@@ -270,11 +279,9 @@ if df_master is not None:
     
     display_top30 = top30_df[['순위', '고객명', '사용', '납기구분', '전체대비 비율(%)']]
     
-    # ✅ 모든 셀 중앙 정렬
     styled_top30 = display_top30.style.set_table_styles(center_header_styles)\
                                       .set_properties(**{'text-align': 'center'})
     
-    # ✅ 순위 컬럼 너비를 픽셀 단위(width=30)로 대폭 축소
     st.dataframe(
         styled_top30, 
         use_container_width=True, 
